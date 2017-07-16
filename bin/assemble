@@ -1,0 +1,46 @@
+#!/bin/bash -e
+#
+# S2I Assemble script for 'sbt' image.
+
+if [[ "$1" == "-h" ]]; then
+	# If the 'sbt' assemble script is executed with '-h' flag,
+	# print the usage.
+	exec /usr/libexec/s2i/usage
+fi
+
+# Restore artifacts from the previous build (if they exist).
+#
+if [ "$(ls -a /tmp/artifacts/ 2>/dev/null)" ]; then
+  echo "---> Restoring build artifacts..."
+  shopt -s dotglob
+  cp -r /tmp/artifacts/* ./
+  rm -rf /tmp/artifacts/*
+fi
+
+echo "---> Installing application source..."
+cp -Rf /tmp/src/. ./
+
+if [ -f "./sbt" ]; then
+  echo "---> Building Play application from source..."
+  ./sbt -ivy /opt/app-root/src/.ivy2 -sbt-dir /opt/app-root/src/.sbt -sbt-boot /opt/app-root/src/.sbt/boot stage
+  if [ $(find target/universal/stage/bin -type f -executable | wc -l) -eq 1 ]; then
+    chmod a+x $(find target/universal/stage/bin -type f -executable)
+  else
+    echo "Could not detect proper start command in $(find target/universal/stage/bin)"
+  fi
+elif [ -f "./build.sbt" ]; then
+    echo "---> Building application from source..."
+    sbt assembly
+elif [ $(find target/universal/stage/bin -type f -executable | wc -l) -eq 1 ]; then
+  echo "---> Fixing permission for binary build..."
+  chmod a+x $(find target/universal/stage/bin -type f -executable)
+elif [ $(find bin -type f -executable | wc -l) -eq 1 ]; then
+  echo "---> Fixing permission for binary build..."
+  chmod a+x $(find bin -type f -executable)
+else
+  echo "---> Nothing to build"
+fi
+
+# Fix source directory permissions
+echo "---> Fixing exec permissions..."
+fix-permissions ./

@@ -1,0 +1,22 @@
+#!/bin/base -e
+#
+# Source to Image Run Script for 'sbt' image.
+
+# Set the environment to development by default.
+if [ -z "$DEV_MODE" ]; then
+  export DEV_MODE=false
+fi
+
+if [ "$DEV_MODE" == true ]; then
+  echo "Launching via SBT"
+  exec sbt run
+else
+  echo "Launching via script"
+  if [ $(find target/scala-*/*assembly*.jar) -eq 1 ]; then
+    exec java -jar $(find target/scala-*/*assembly*.jar) $JAVA_OPTS
+  elif [ $(find bin -type f -executable | wc -l) -eq 1 ]; then
+    exec $(find bin -type f -executable)
+  else
+    echo "No application runtime detected in $(pwd)"
+  fi
+fi
